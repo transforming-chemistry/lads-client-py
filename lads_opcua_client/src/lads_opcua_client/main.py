@@ -1899,7 +1899,7 @@ class TwoStateDiscreteSensorFunction(BaseSensorFunction):
 class MultiStateDiscreteSensorFunction(BaseSensorFunction):
     @classmethod
     async def promote(cls, node: Node, server: Server) -> Self:
-        return await promote_to(MultiStateDiscreteSensorFunction, node, server.TwoStateDiscreteSensorFunctionType, server)
+        return await promote_to(MultiStateDiscreteSensorFunction, node, server.MultiStateDiscreteSensorFunctionType, server)
 
     async def init(self, server: Server):
         await super().init(server)        
