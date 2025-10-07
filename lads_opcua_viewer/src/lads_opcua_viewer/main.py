@@ -739,8 +739,10 @@ def main():
         col_cmd, col_state, col_definition = st.columns([2, 3, 2])
         with col_cmd:
             state_machine = selected_functional_unit.functional_unit_state
-            methods = list(filter(lambda method: method != "StartProgram", state_machine.method_names ))
-            cmd = st.selectbox("Command", options=methods, index=None, label_visibility="collapsed", placeholder="Choose a command")
+            # for the command select box extract methods without input arguments (except Start)
+            methods = list(filter(lambda method: (len(method.input_arguments) == 0) | (method.display_name == "Start"), state_machine.methods))
+            method_names = map(lambda method: method.display_name, methods)
+            cmd = st.selectbox("Command", options=method_names, index=None, label_visibility="collapsed", placeholder="Choose a command")
             if cmd == "Start":
                 state_machine.start(pd.DataFrame())
             else:

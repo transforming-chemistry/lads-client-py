@@ -24,6 +24,7 @@
 
 import asyncio
 import logging
+import sys
 import threading
 import time
 import json
@@ -42,8 +43,20 @@ AFOSupport = True
 if AFOSupport:
     from .afo import DictionaryEntry, get_entry
 
+# initialize logger
+level = logging.DEBUG
 _logger = logging.getLogger(__name__)
+_logger.setLevel(level)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(level)
+formatter = logging.Formatter(
+    fmt='[%(asctime)s] [%(levelname)s] %(name)s:%(lineno)d in %(funcName)s() → %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S')
+console_handler.setFormatter(formatter)
+if not _logger.handlers:
+    _logger.addHandler(console_handler)
 
+# pre-define some types
 LADSNode = NewType("LADSNode", Node)
 BaseVariable = NewType("BaseVariable", LADSNode)
 Method = NewType("Method", LADSNode)
@@ -51,7 +64,6 @@ Component = NewType("Component", LADSNode)
 Device = NewType("Device", Component)
 FunctionalUnit = NewType("FunctionalUnit", LADSNode)
 Function = NewType("Function", LADSNode)
-
 
 # MARK: Node IDs
 # pylint: disable=C0103
@@ -252,7 +264,7 @@ class Server(LADSTypes):
                 await device.finalize_init()
                 self.devices.append(device)
             except Exception as error:
-                _logger.error(error)
+                _logger.error(error, extra=["node", node])
                 return data_types
 
         self.initialized = True
@@ -659,11 +671,31 @@ class LADSNode(Node):
                 return []
         else:
             return []
-        
+
+    
 class Method(LADSNode):
+    input_arguments: list[Any]
+    output_arguments: list[Any]
+
     @classmethod
     async def promote(cls, node: Node, server: Server) -> Self:
         return await promote_to(Method, node, None, server)
+
+    async def get_arguments(self, name: str) -> list[Any]:
+        try:
+            node = await self.get_child(name)
+            if (node is not None):
+                return await node.get_value()
+            else:
+                return []
+        except:
+            return []
+
+    async def init(self, server: Server):
+        await super().init(server)
+        self.input_arguments = await self.get_arguments("InputArguments")
+        self.output_arguments = await self.get_arguments("OutputArguments")
+        _logger.debug(f"Method {self.display_name} inp {len(self.input_arguments)} out {len(self.output_arguments)}")
 
 # MARK: BaseVariable
 class BaseVariable(LADSNode):
@@ -765,6 +797,35 @@ class BaseVariable(LADSNode):
                 pass
             if len(self.history.index) > 600:
                 self.history = self.history.tail(-1)
+
+# MARK: Method
+class Method(LADSNode):
+    input_arguments: list
+    output_arguments: list
+
+    @classmethod
+    async def promote(cls, node: Node, server: Server) -> Self:
+        return await promote_to(Method, node, None, server)
+
+    async def get_arguments(self, name: str) -> list:
+        try:
+            node = await self.get_child(name)
+            if (node is not None):
+                value = await node.get_value()
+                if (type(value) == list):
+                    return value
+                else:
+                    return []
+            else:
+                return []
+        except:
+            return []
+
+    async def init(self, server: Server):
+        await super().init(server)
+        self.input_arguments = await self.get_arguments("InputArguments")
+        self.output_arguments = await self.get_arguments("OutputArguments")
+        # _logger.debug(f"Method {self.display_name} inp {self.input_arguments} out {self.output_arguments}")
 
 # MARK: SubscribedVariable
 class SubscribedVariable(BaseVariable):
@@ -996,6 +1057,8 @@ class StateMachine(LADSNode):
         return self.methods_dict.keys()
     
     def call_method_by_name(self, name: str, *args):
+        if name is None:
+            return
         try:
             method = self.methods_dict[name]
             if method is not None:
@@ -2199,8 +2262,9 @@ class Connection:
             except (TimeoutError, ConnectionError, ua.UaError) as error:
                 _logger.warning(f"Reconnecting in 2 seconds: {error}")
                 await asyncio.sleep(2)
-            except Exception as error:
-                _logger.error(error)
+            #except Exception as error:
+                # _logger.error(error)
+                
 
 def get_value(data: dict, key: str) -> any:
     if key in data:
