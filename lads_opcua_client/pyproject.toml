@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "lads_opcua_client"
+name = "lads-opcua-client"
 version = "0.0.1"
 dependencies = [
   "pandas>=2.2.2",
