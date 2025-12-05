@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lads-opcua-viewer"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
-  "lads-opcua-client>=0.0.1",
+  "lads-opcua-client>=0.1.0",
   "streamlit>=1.43.2",
   "pandas>=2.2.2",
   "plotly>=5.22.0",
