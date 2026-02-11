@@ -748,7 +748,7 @@ def main():
     if selectedFunctionalUnitKey not in st.session_state:
         st.session_state[selectedFunctionalUnitKey] = functional_unit_names[0]    
     if resultExportPathKey not in st.session_state:
-        st.session_state[resultExportPathKey] = ""
+        st.session_state[resultExportPathKey] = "/app/exports"
     if resultAutoFetchKey not in st.session_state:
         st.session_state[resultAutoFetchKey] = set()
     if resultAutoUploadKey not in st.session_state:

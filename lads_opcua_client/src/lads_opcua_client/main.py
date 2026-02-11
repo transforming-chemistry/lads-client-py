@@ -46,7 +46,7 @@ if AFOSupport:
     from .afo import DictionaryEntry, get_entry
 
 # initialize logger
-level = logging.INFO
+level = logging.WARNING
 _logger = logging.getLogger(__name__)
 _logger.setLevel(level)
 console_handler = logging.StreamHandler(sys.stdout)
