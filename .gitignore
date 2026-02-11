@@ -7,3 +7,4 @@ src/__pycache__/*
 config.json
 */dist/
 tests/__pycache__
+.vscode/launch.json

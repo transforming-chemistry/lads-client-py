@@ -28,6 +28,8 @@ import sys
 import threading
 import time
 import json
+import mimetypes
+from pathlib import Path
 import pandas as pd
 import datetime as dt
 from typing import List, Type, NewType, Any, Self, Tuple, Set
@@ -44,7 +46,7 @@ if AFOSupport:
     from .afo import DictionaryEntry, get_entry
 
 # initialize logger
-level = logging.WARNING
+level = logging.INFO
 _logger = logging.getLogger(__name__)
 _logger.setLevel(level)
 console_handler = logging.StreamHandler(sys.stdout)
@@ -1625,6 +1627,52 @@ class ResultFile(LADSNode):
     def fetch_data(self):
         _logger.debug("fetching file data ..")
         self.call_async(self.download())
+
+    def upload(self, output_dir: str) -> str:
+        """Write downloaded result data to a file in the target directory."""
+        if output_dir is None or len(output_dir.strip()) == 0:
+            _logger.info("File upload: output_dir must be a non-empty path string")
+            return
+        if not self.has_data():
+            _logger.info("No result file data available. Call fetch_data() and wait for completion first.")
+            return
+        
+        target_dir = Path(output_dir).expanduser()
+
+        if not target_dir.exists() or not target_dir.is_dir():
+            _logger.warning(f"File upload: output_dir '{output_dir}' does not exist or is not a directory.")
+            return
+
+        target_file = target_dir / self.file_name
+
+        if target_file.exists():
+            _logger.info (f"File upload: target file '{target_file}' already exists and will not be overwritten.")
+            return
+
+        with open(target_file, "wb") as file:
+            file.write(self.data)
+
+        _logger.info(f"File uploaded successfully to '{target_file}'.")
+
+        return str(target_file)
+
+    @property
+    def file_name(self) -> str:
+        'Full file name with extension. The extension is guessed from the MimeType variable.'
+        if self.name is not None and self.name.value_str is not None and len(self.name.value_str.strip()) > 0:
+            # Use basename to avoid path traversal from server-provided names.
+            base_name = Path(self.name.value_str).name
+        else:
+            base_name = "result_file"
+
+        mime_type = None
+        if self.mime_type is not None and self.mime_type.value_str is not None:
+            mime_type = self.mime_type.value_str.split(";", 1)[0].strip().lower()
+        extension = mimetypes.guess_extension(mime_type, strict=False) if mime_type else None
+        if Path(base_name).suffix == "" and extension:
+            base_name = f"{base_name}{extension}"
+
+        return base_name
 
     @property
     def variables(self) ->list[BaseVariable]:

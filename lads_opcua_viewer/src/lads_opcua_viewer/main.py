@@ -635,12 +635,15 @@ def update_active_program(progress_container, functional_unit: lads.FunctionalUn
             pass
 
 # MARK: update_result_set
-def update_result_set(container, functional_unit: lads.FunctionalUnit):
+def update_result_set(container, functional_unit: lads.FunctionalUnit, result_export_path: str = ""):
     with container.container():
         st.write("**Results**")
         program_manager = functional_unit.program_manager
         if program_manager is None: 
             return
+        auto_fetch_requested = st.session_state.setdefault(resultAutoFetchKey, set())
+        auto_uploaded = st.session_state.setdefault(resultAutoUploadKey, {})
+        export_path = result_export_path.strip()
         for result in program_manager.results:
             with st.expander(result.display_name, expanded=False):
                 definitions = result.dictionary_entries_as_markdown
@@ -656,12 +659,34 @@ def update_result_set(container, functional_unit: lads.FunctionalUnit):
                     show_variables_table(result_file.variables)
                     unique_key = f"button_{time.time_ns()}"
                     if result_file.has_data():
-                        file_name = result_file.name.value_str
+                        file_name = result_file.file_name
                         mime_type = result_file.mime_type.value_str
                         data = result_file.data
                         st.download_button("Download", data=data, file_name=file_name, mime=mime_type, key=unique_key)
+                        if len(export_path) > 0:
+                            file_id = str(result_file.nodeid)
+                            upload_marker = f"{export_path}|{file_id}|{file_name}"
+                            auto_fetch_requested.discard(file_id)
+                            if upload_marker not in auto_uploaded:
+                                saved_path = result_file.upload(export_path)
+                                if saved_path is not None:
+                                    auto_uploaded[upload_marker] = saved_path
+                                    st.caption(f"Auto-exported to `{saved_path}`")
+                            elif auto_uploaded[upload_marker] is not None:
+                                st.caption(f"Auto-exported to `{auto_uploaded[upload_marker]}`")
                     else:
-                        st.button("Fetch data", key=unique_key, on_click=result_file.fetch_data())
+                        if len(export_path) > 0:
+                            file_id = str(result_file.nodeid)
+                            if file_id not in auto_fetch_requested:
+                                result_file.fetch_data()
+                                auto_fetch_requested.add(file_id)
+                            st.caption("Fetching result data for auto-export ...")
+                        st.button(
+                            "Fetch data",
+                            key=unique_key,
+                            on_click=result_file.fetch_data,
+                            disabled=(len(export_path) > 0),
+                        )
                 
                 # show application specific variables, if any
                 if len(result.variable_set.variables) > 0:
@@ -677,6 +702,9 @@ def update_result_set(container, functional_unit: lads.FunctionalUnit):
                     show_variables_table(result.variable_set.variables)
 
 selectedFunctionalUnitKey = "selected_functional_unit"
+resultExportPathKey = "result_export_path"
+resultAutoFetchKey = "result_auto_fetch_requested"
+resultAutoUploadKey = "result_auto_uploaded"
 lastEventListUpdateKey = "last_event_list_update"
 
 # MARK: empty
@@ -719,11 +747,23 @@ def main():
     functional_unit_names.sort()
     if selectedFunctionalUnitKey not in st.session_state:
         st.session_state[selectedFunctionalUnitKey] = functional_unit_names[0]    
+    if resultExportPathKey not in st.session_state:
+        st.session_state[resultExportPathKey] = ""
+    if resultAutoFetchKey not in st.session_state:
+        st.session_state[resultAutoFetchKey] = set()
+    if resultAutoUploadKey not in st.session_state:
+        st.session_state[resultAutoUploadKey] = {}
     # in anyway create a new last_event_update on rerun
     st.session_state[lastEventListUpdateKey] = dt.datetime.now()    
 
     # functional-unit list on the left side
     st.session_state[selectedFunctionalUnitKey] = st.sidebar.selectbox("Select a functional-unit", functional_unit_names)
+    st.session_state[resultExportPathKey] = st.sidebar.text_input(
+        "Result export path",
+        value=st.session_state[resultExportPathKey],
+        placeholder="/path/to/export/folder",
+        help="When set, result files are fetched and exported automatically to this host path.",
+    )
 
     # get selected functional-unit
     selected_functional_unit = functional_units[0]
@@ -776,7 +816,7 @@ def main():
                 progress_container = show_active_program(empty(st.empty()), selected_functional_unit)
             with col_results:
                 container_results = empty(st.empty())
-                update_result_set(container_results, selected_functional_unit)
+                update_result_set(container_results, selected_functional_unit, st.session_state[resultExportPathKey])
 
         with tab_device:
             container_device, container_map, container_components = show_asset_management(empty(st.empty()), selected_functional_unit.device)
@@ -801,7 +841,7 @@ def main():
                 if index >= 5:
                     index = 0
                     update_charts(container_chart, selected_functional_unit, True)
-                    update_result_set(container_results, selected_functional_unit)
+                    update_result_set(container_results, selected_functional_unit, st.session_state[resultExportPathKey])
                 time.sleep(1)
 
         update_loop()

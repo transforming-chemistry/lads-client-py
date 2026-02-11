@@ -1,17 +1,25 @@
 {
-    // Verwendet IntelliSense zum Ermitteln möglicher Attribute.
-    // Zeigen Sie auf vorhandene Attribute, um die zugehörigen Beschreibungen anzuzeigen.
-    // Weitere Informationen finden Sie unter https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Aktuelle Datei",
+            "name": "Python Debugger: Current File",
+            "cwd": "/home/dorokhov/OPCUA/lads-client-py",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "python": "${command:python.interpreterPath}"
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debug: Streamlit app",
+            "cwd": "/home/dorokhov/OPCUA/lads-client-py",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "${workspaceFolder}/lads_opcua_viewer/src/lads_opcua_viewer/main.py",
+                "--server.port",
+                "2000",
+            ]
         }
     ]
 }

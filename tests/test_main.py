@@ -5,7 +5,7 @@ import os
 import sys
 
 def test_connections():
-    json_file = os.path.join(os.path.dirname(__file__), "config.json")
+    json_file = os.path.join(os.path.curdir, "config.json")
 
     print(sys.executable)
     print(dir(lads))
@@ -62,3 +62,5 @@ def test_connections():
 
     # Disconnect connections
     conns.disconnect()
+
+test_connections()
